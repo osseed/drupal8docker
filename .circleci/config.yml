@@ -1,5 +1,45 @@
 version: 2
 jobs:
   build:
+    working_directory: /app
     docker:
-      - image: osseed/drupal8:latest
+      - image: docker:17.05.0-ce-git
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: Install dependencies
+          command: |
+            apk add --no-cache
+            pip install docker-compose==1.12.0
+      - restore_cache:
+          keys:
+            - v1-{{ .Branch }}
+          paths:
+            - /caches/app.tar
+      - run:
+          name: Load Docker Image Layer Cache
+          command: |
+            set +o pipefail
+            docker load -i /caches/app.tar | true
+      - run:
+          name: Build Application Image
+          command: |
+            echo "$DOCKER_PASS" | docker login --username $DOCKER_USER --password-stdin
+            docker build -t app .
+      - run:
+          name: Save Docker Image Layer Cache
+          command: |
+            mkdir -p /caches
+            docker save -o /caches/app.tar app
+      - save_cache:
+          key: v1-{{ .Branch }}-{{ epoch }}
+          paths:
+            - /caches/app.tar
+      - deploy:
+          name: Push Docker Image
+          command: |
+            if [ "${CIRCLE_BRANCH}" == "master" ]; then
+              docker tag app "osseed/drupal8:${CIRCLE_SHA1}"
+              docker push osseed/drupal8:$CIRCLE_BRANCH
+            fi
