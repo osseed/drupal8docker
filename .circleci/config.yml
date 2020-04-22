@@ -26,7 +26,6 @@ jobs:
       - run:
           name: Build Application Image
           command: |
-            echo "$DOCKER_PASS" | docker login --username $DOCKER_USER --password-stdin
             docker build -t app .
       - run:
           name: Save Docker Image Layer Cache
@@ -41,6 +40,7 @@ jobs:
           name: Push Docker Image
           command: |
             if [ "${CIRCLE_BRANCH}" == "master" ]; then
-              docker tag app "osseed/drupal8:${CIRCLE_SHA1}"
+              echo '$DOCKER_PASS' | docker login --username $DOCKER_USER --password-stdin
+              docker tag app "$DOCKER_HUB/$DOCKER_APP:${CIRCLE_SHA1}"
               docker push osseed/drupal8:$CIRCLE_BRANCH
             fi
